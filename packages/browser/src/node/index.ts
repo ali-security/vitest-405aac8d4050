@@ -74,7 +74,9 @@ export async function createBrowserServer(
       ...prePlugins,
       ...(project.options?.plugins || []),
       BrowserPlugin(server),
-      interceptorPlugin({ registry: mockerRegistry }),
+      // browser mocks register through the authenticated RPC (`setupBrowserRpc`),
+      // so the raw dev-server socket must not accept mock registration
+      interceptorPlugin({ registry: mockerRegistry, registerWebSocketEvents: false }),
       ...postPlugins,
     ],
   })

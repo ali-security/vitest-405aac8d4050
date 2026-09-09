@@ -2,6 +2,7 @@ import type { Plugin } from 'vite'
 import type { MockedModuleSerialized } from '../registry'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path/posix'
+import { isFileServingAllowed } from 'vite'
 import { ManualMockedModule, MockerRegistry } from '../registry'
 import { cleanUrl, createManualModuleSource } from '../utils'
 import { automockModule } from './automockPlugin'
@@ -12,6 +13,13 @@ export interface InterceptorPluginOptions {
    */
   globalThisAccessor?: string
   registry?: MockerRegistry
+  /**
+   * Register the `vitest:interceptor:*` WebSocket events in `configureServer`.
+   * Disable this when mocks are registered through another authenticated
+   * channel and the raw dev-server socket should not accept them.
+   * @default true
+   */
+  registerWebSocketEvents?: boolean
 }
 
 export function interceptorPlugin(options: InterceptorPluginOptions = {}): Plugin {
@@ -56,6 +64,9 @@ export function interceptorPlugin(options: InterceptorPluginOptions = {}): Plugi
       },
     },
     configureServer(server) {
+      if (options.registerWebSocketEvents === false) {
+        return
+      }
       server.ws.on('vitest:interceptor:register', (event: MockedModuleSerialized) => {
         if (event.type === 'manual') {
           const module = ManualMockedModule.fromJSON(event, async () => {
@@ -67,7 +78,18 @@ export function interceptorPlugin(options: InterceptorPluginOptions = {}): Plugi
         else {
           if (event.type === 'redirect') {
             const redirectUrl = new URL(event.redirect)
-            event.redirect = join(server.config.root, redirectUrl.pathname)
+            const redirect = join(server.config.root, redirectUrl.pathname)
+            // the redirect is read by the `load` hook above, so it must stay
+            // inside the file serving allowlist and never escape the root.
+            // `isFileServingAllowed` is used instead of `isFileLoadingAllowed`
+            // (which it delegates to, after normalizing the path) because vite
+            // only started exporting the latter after 5.0, and 5.0 is inside
+            // this package's declared `vite` peer range
+            if (!isFileServingAllowed(redirect, server)) {
+              server.ws.send('vitest:interceptor:register:result')
+              return
+            }
+            event.redirect = redirect
           }
           registry.register(event)
         }

@@ -243,7 +243,17 @@ test('viewport', async () => {
   })
 })
 
-test.runIf(provider === 'playwright')('timeout hooks', async () => {
+// The snapshot below pins the exact set of hook TimeoutErrors that the
+// `timeout-hooks` fixture produces, and every one of those hooks races a 500ms
+// budget against a real `locator.click`. On the macOS runners the budget is
+// regularly gone before the click even starts, so hooks either report no
+// `TimeoutError:` line at all or report a negative remainder ("Timeout -11ms
+// exceeded") that the sanitizing regex below does not normalize - the snapshot
+// cannot be made deterministic there. The same assertion still runs on the
+// Windows leg of this job.
+const isMacOS = process.platform === 'darwin'
+
+test.runIf(provider === 'playwright' && !isMacOS)('timeout hooks', async () => {
   const { stderr } = await runBrowserTests({
     root: './fixtures/timeout-hooks',
   })

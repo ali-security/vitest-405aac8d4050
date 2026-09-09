@@ -7,6 +7,15 @@ import { startVitest } from 'vitest/node'
 const port = 9001
 const pageUrl = `http://localhost:${port}/`
 
+// `btn-open-details` only materializes while its row is hovered, and inside the
+// details panel Playwright cannot always scroll it into view. On the
+// `Build&Test: node-20.19.2, macos-latest` leg the click fails with
+// "Element is outside of the viewport" even with `force: true`, after
+// "done scrolling" and through all the configured retries. Only the individual
+// cases observed failing there are skipped; they still run on the Linux and
+// Windows legs.
+const skipOpenDetails = process.platform === 'darwin'
+
 test.describe('html report', () => {
   let previewServer: PreviewServer
 
@@ -60,6 +69,9 @@ test.describe('html report', () => {
   })
 
   test('basic', async ({ page }) => {
+    // clicks `btn-open-details` below - reported "1 flaky" on macos-latest
+    test.skip(skipOpenDetails, 'btn-open-details is outside of the viewport on macOS')
+
     const pageErrors: unknown[] = []
     page.on('pageerror', error => pageErrors.push(error))
 
@@ -101,6 +113,9 @@ test.describe('html report', () => {
   })
 
   test('error', async ({ page }) => {
+    // clicks `btn-open-details` below - failed all 3 attempts on macos-latest
+    test.skip(skipOpenDetails, 'btn-open-details is outside of the viewport on macOS')
+
     await page.goto(pageUrl)
     const sample = page.getByTestId('details-panel').getByLabel('fixtures/error.test.ts')
     await sample.hover()
