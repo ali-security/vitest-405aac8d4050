@@ -1,10 +1,10 @@
 name: CR
 
+# Triggers narrowed to workflow_dispatch on the seal fork: the upstream
+# push/pull_request triggers would fire this continuous-release job on every fork
+# sync, and it is not part of how the release artifact is built.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    types: [opened, synchronize, labeled]
+  workflow_dispatch:
 
 permissions: {}
 
@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   release:
+    timeout-minutes: 20
     if: github.repository == 'vitest-dev/vitest' && (github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'cr-tracked'))
     runs-on: ubuntu-latest
     name: 'Release: pkg.pr.new'

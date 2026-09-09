@@ -73,7 +73,12 @@ for (const isolate of [true, false]) {
         },
         )
       }
-    })
+      // Each case spawns a whole nested Vitest run with coverage enabled, which
+      // does not fit the 5s default timeout on the slower Windows runner
+      // (`{ isolate: false, pool: "forks" }` times out there under
+      // istanbul-browser). Only the wall-clock budget is relaxed; every
+      // assertion above still has to pass.
+    }, 120_000)
   }
 }
 

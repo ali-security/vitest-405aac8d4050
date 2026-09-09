@@ -1,9 +1,9 @@
 name: Publish Package
 
+# Triggers narrowed to workflow_dispatch on the seal fork: publishing needs an npm
+# token we do not have, and the tag push from a fork sync must not trigger it.
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,6 +15,7 @@ env:
 
 jobs:
   publish:
+    timeout-minutes: 30
     if: github.repository == 'vitest-dev/vitest'
     runs-on: ubuntu-latest
     environment: Release
